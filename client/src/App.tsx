@@ -82,8 +82,16 @@ function App() {
                 console.log(i);
                 const blob = chunks[i];
 
+                // ? How acknowledgement works
+                // socket.emit('event', 'foo', (response) => {
+                //     console.log(response);
+                // });
+
                 socket.emit(`upload_chunk_${connectionId}`, { data: blob, last: i === chunks.length - 1, index: i });
 
+                // ! Hey! Instead of having separate events, just wait for an acknowledgement.
+                // ? look here: https://stackoverflow.com/questions/20417569/acknowledgment-for-socket-io-custom-event
+                // ? and here: https://socket.io/docs/v3/emit-cheatsheet/
                 // Wait for the server to respond back stating that the upload was a success and it's
                 // ready for the next chunk
                 await new Promise((resolve) => {
