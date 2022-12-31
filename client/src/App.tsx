@@ -9,6 +9,8 @@ import type { Socket } from 'socket.io-client';
 
 const CHUNK_SIZE = 1024 * 20;
 
+// ! Make a generator function out of this instead of returning an entire
+// ! array of chunks that is stored in memory.
 const chunkFile = (file: File, chunkSize: number) => {
     const futureLength = Math.ceil(file.size / chunkSize);
     let start = 0;
@@ -19,6 +21,9 @@ const chunkFile = (file: File, chunkSize: number) => {
         start += chunkSize;
     }
 
+    // ! Look into using the browser streaming API
+    // file.stream().getReader()
+
     return result;
 };
 
@@ -27,7 +32,11 @@ function App() {
     const [socket, setSocket] = useState<Socket | null>(null);
 
     useEffect(() => {
-        setSocket(io('http://localhost:4000'));
+        const connection = io('http://localhost:4000');
+        setSocket(connection);
+
+        // ! Don't forget a cleanup function!
+        return () => void connection.disconnect();
     }, []);
 
     const handleChange: ChangeEventHandler<HTMLInputElement> = useCallback((e) => {
@@ -39,6 +48,15 @@ function App() {
         async (e) => {
             e.preventDefault();
             if (!socket || !file) return;
+
+            // ! generate the upload session ID on the client
+            // ! so that it can be appended to the upload_file
+            // ! event. On the server listen for events matching
+            // ! a certain regular expression.
+            // ? Is that ideal though? Or, just send the metadata for the file along
+            // ? with every chunk upload instead of storing them in memory on the server.
+            // * ^ That solution seems to be more optimal.
+            // const id = v4()
 
             const promise = new Promise((resolve) => {
                 socket.once('ready_for_upload', (id: string) => {
@@ -58,6 +76,8 @@ function App() {
             // const reader = new FileReader();
             const chunks = chunkFile(file, CHUNK_SIZE);
 
+            // ! Have an abortcontroller situation for this in case the
+            // ! component is unmounted during the upload.
             for (let i = 0; i < chunks.length; i++) {
                 console.log(i);
                 const blob = chunks[i];
